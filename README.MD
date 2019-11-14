@@ -4,6 +4,8 @@ It does what it says: explore disk usage. The backend is written in Python ( > 3
 
 Please note: this is not intended to have good UI or UX, but rather to server my very specific needs. It deliberately does things in ways which could be improved to save time.
 
+_Please note that this tool can't account for folders/files which it can't access, so the numbers may be actually larger_
+
 ## Using it
 
  1. Ensure you have Python 3.7. If you don't use Micro$oft Window$, read the section below.
