@@ -6,6 +6,9 @@
             * {
                 font-family:'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
             }
+            .loading * {
+                cursor: progress !important;
+            }
             .entry {
                 padding: 0em;
                 border-top: 0;
@@ -26,11 +29,11 @@
             let API_URL = "http://localhost:8080";
             let BOX_WIDTH = 300;
             function make_listing(path, dom_node, x_offset, generation) {
-                document.body.style.cursor = "progress";
+                document.body.classList.add("loading");
                 fetch(API_URL + "/query|" + encodeURI(path)).then(
                     response => response.json()
                 ).then(function(json_response) {
-                    document.body.style.cursor = "";
+                    document.body.classList.remove("loading");
                     let other_columns = document.getElementsByClassName("columns");
                     for (let i = other_columns.length - 1; i >= 0; --i) {
                         // faffing around to allow for removal of elements from list during iteration
@@ -79,7 +82,10 @@
                         }
                     }
                     dom_node.appendChild(column_node);
-                }).catch(e => alert("Error report to Xavier " + e));
+                }).catch(function(e) {
+                    document.body.classList.remove("loading");
+                    alert("Error report to Xavier " + e)
+                });
             }
             make_listing("C:\\", document.body, 0, 0);
         </script>
