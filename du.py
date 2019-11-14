@@ -69,7 +69,7 @@ def find_folder_size(path):
 
 BINARY_SIZE_UNIT = 1024
 
-@custom_cache(max_size = 256)
+@custom_cache(max_size = 512)
 def get_proportional_listing(path):
     print(f"Proportional listing {path} ...")
     total = 0
@@ -119,9 +119,22 @@ class DUHttpHandle(BaseHTTPRequestHandler):
                 self.end_headers()
                 shutil.copyfileobj(f, self.wfile)
         elif len(splitted) == 2 and splitted[0] == "/query":
+            listing = get_proportional_listing(splitted[1])
             self.send_response(200)
             self.end_headers()
-            self.wfile.write(json.dumps(get_proportional_listing(splitted[1])).encode('utf-8'))
+            self.wfile.write(json.dumps(listing).encode('utf-8'))
+        else:
+            self.send_response(404)
+            self.end_headers()
+            self.wfile.write(b"404 NOT FOUND")
+    
+    def do_POST(self):
+        splitted = urllib.parse.unquote(self.path).split("|")
+        if len(splitted) == 2 and splitted[0] == "/reveal":
+            # TODO make this work
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"OK")
         else:
             self.send_response(404)
             self.end_headers()
