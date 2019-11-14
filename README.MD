@@ -28,6 +28,7 @@ _Please note that this tool can't account for folders/files which it can't acces
 
  10. Click on a folder to the left of the currently opened folder to close it
 
+ 11. Alt+Click on any entry to reveal it in explorer (Windows only)
 
 ## Non-windows
 

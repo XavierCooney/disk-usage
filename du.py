@@ -7,7 +7,7 @@ import json
 from http.server import HTTPServer, BaseHTTPRequestHandler, ThreadingHTTPServer
 import urllib.parse
 import functools
-
+import subprocess
 
 def custom_cache(max_size = 16384, initial_minimum = float('-inf')):
     if not isinstance(max_size, int):
@@ -131,10 +131,16 @@ class DUHttpHandle(BaseHTTPRequestHandler):
     def do_POST(self):
         splitted = urllib.parse.unquote(self.path).split("|")
         if len(splitted) == 2 and splitted[0] == "/reveal":
-            # TODO make this work
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(b"OK")
+            if os.name == 'nt':
+                # note: may return non-zero exit status, because Windows :(
+                subprocess.run(['explorer', '/select,' + splitted[1]])
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"OK")
+            else:
+                self.send_response(501) # 501: Not Implemented
+                self.end_headers()
+                self.wfile.write(b"OK")
         else:
             self.send_response(404)
             self.end_headers()

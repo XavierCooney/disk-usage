@@ -81,20 +81,30 @@
                         box_node.style.zIndex = 9999 - generation;
                         column_node.appendChild(box_node);
                         box_nodes.push(box_node);
-                        if(foldable) {
-                            box_node.addEventListener('click', function(e) {
+                        box_node.addEventListener('click', function(e) {
+                            if(e.altKey) {
+                                fetch(API_URL + "/reveal|" + encodeURI(full_path), {
+                                    method: 'POST'
+                                }).catch(function(e) {
+                                    alert("Error opening: " + e);
+                                    console.log(e);
+                                })
+                            } else if(foldable) {
                                 for(let other_node of box_nodes) {
                                     other_node.classList.remove("selected");
                                 }
                                 box_node.classList.add("selected");
                                 make_listing(full_path, dom_node, x_offset + BOX_WIDTH, generation + 1);
-                            });
+                            }
+                        });
+                        if(foldable) {
                             box_node.classList.add("folder");
                             box_node.style.cursor = "pointer";
                         }
                     }
                     dom_node.appendChild(column_node);
                 }).catch(function(e) {
+                    console.log(e);
                     document.body.classList.remove("loading");
                     alert("Error report to Xavier " + e)
                 });
