@@ -34,3 +34,8 @@ _Please note that this tool can't account for folders/files which it can't acces
 To use on a *NIX system, you'll need to change a few things:
 
  1. Change the line in `du.html` from `make_listing("C:\\", document.body, 0, 0);` to `make_listing("/", document.body, 0, 0);`
+
+## Testimonials
+
+"This software immedieately helped me identify a plethora of useless and unwanted software/files on my computer and has already helped me free up 4gb of storage after 5 minutes of use. Highly recommended!"
+_GitHubMadHatter - Yash Agarwal_
