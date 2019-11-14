@@ -37,6 +37,6 @@ To use on a *NIX system, you'll need to change a few things:
 
 ## Testimonials
 
-"This software immediately helped me identify a plethora of useless and unwanted software/files on my computer and has already helped me free up 4gb of storage after 5 minutes of use. Highly recommended!"
+"This software immediately helped me identify a plethora of useless and unwanted software/files on my computer, and has helped me free up 10% of my storage (more than 12gb). Highly recommended!"
 
 _GitHubMadHatter - Yash Agarwal_
