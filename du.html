@@ -8,6 +8,8 @@
             }
             .entry {
                 padding: 0em;
+                border-top: 0;
+                border-bottom: 0;
                 padding-top: 0em;
                 text-align: center;
                 border: 1px red solid;
@@ -24,9 +26,11 @@
             let API_URL = "http://localhost:8080";
             let BOX_WIDTH = 300;
             function make_listing(path, dom_node, x_offset, generation) {
+                document.body.style.cursor = "progress";
                 fetch(API_URL + "/query|" + encodeURI(path)).then(
                     response => response.json()
                 ).then(function(json_response) {
+                    document.body.style.cursor = "";
                     let other_columns = document.getElementsByClassName("columns");
                     for (let i = other_columns.length - 1; i >= 0; --i) {
                         // faffing around to allow for removal of elements from list during iteration
@@ -55,7 +59,7 @@
                         box_node.style.width = BOX_WIDTH;
                         box_node.style.left = x_offset;
                         box_node.style.top = y_offset;
-                        let box_height = percentage * document.documentElement.clientHeight
+                        let box_height = percentage * document.documentElement.clientHeight;
                         y_offset += box_height;
                         box_node.style.height = box_height;
                         box_node.style.backgroundColor = colour_light ? "#EEE" : "#AAA";
@@ -75,7 +79,7 @@
                         }
                     }
                     dom_node.appendChild(column_node);
-                });
+                }).catch(e => alert("Error report to Xavier " + e));
             }
             make_listing("C:\\", document.body, 0, 0);
         </script>
