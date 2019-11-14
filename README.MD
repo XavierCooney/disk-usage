@@ -1,6 +1,6 @@
 # Xavier's Tiny Disk Usage Explorer
 
-It does what it says: explore disk usage. The backend is written in Python ( > 3.6), and the fronted is written in HTML5.
+It does what it says: explore disk usage. The backend is written in Python ( > 3.6), and the frontend is written in HTML5.
 
 Please note: this is not intended to have good UI or UX, but rather to server my very specific needs. It deliberately does things in ways which could be improved to save time.
 
@@ -16,9 +16,9 @@ Please note: this is not intended to have good UI or UX, but rather to server my
 
  5. After it loads, you should see the files in your root C: drive.
 
- 6. The entry's height are proportional to their size relative to their containing folder sizes
+ 6. The entry's heights are proportional to their size relative to the sizes of the folder/s they contain
 
- 7. You can hover your mouse over entry's to view further info
+ 7. You can hover your mouse over entries to view further info
 
  8. Folders are marked with a blue right edge.
 
