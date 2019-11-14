@@ -24,6 +24,9 @@
             .entry.folder {
                 border-right: 3px blue solid;
             }
+            .entry.folder.selected {
+                border-right: 3px #0F0 solid;
+            }
         </style>
     </head>
     <body>
@@ -54,6 +57,7 @@
                     column_node.style.zIndex = generation;
                     column_node.dataset.generation = generation;
                     column_node.style.display = "position";
+                    let box_nodes = [];
                     for(let child of json_response) {
                         let percentage = child[0];
                         let filename = child[1];
@@ -76,8 +80,13 @@
                         box_node.classList.add("entry");
                         box_node.style.zIndex = 9999 - generation;
                         column_node.appendChild(box_node);
+                        box_nodes.push(box_node);
                         if(foldable) {
                             box_node.addEventListener('click', function(e) {
+                                for(let other_node of box_nodes) {
+                                    other_node.classList.remove("selected");
+                                }
+                                box_node.classList.add("selected");
                                 make_listing(full_path, dom_node, x_offset + BOX_WIDTH, generation + 1);
                             });
                             box_node.classList.add("folder");
