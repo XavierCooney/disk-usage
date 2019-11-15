@@ -10,7 +10,7 @@ import functools
 import subprocess
 import webbrowser
 
-def custom_cache(max_size = 16384, initial_minimum = float('-inf')):
+def xav_cache(max_size = 16384, initial_minimum = float('-inf')):
     if not isinstance(max_size, int):
         raise TypeError('Expected max_size to be an integer')
 
@@ -49,7 +49,7 @@ def custom_cache(max_size = 16384, initial_minimum = float('-inf')):
         return wrapped_function
     return decorating_function
 
-@custom_cache(max_size = 2048 * 8)
+@xav_cache(max_size = 2048 * 8)
 def find_folder_size(path):
     print(f"Checking {path} ...")
     total = 0
@@ -70,7 +70,7 @@ def find_folder_size(path):
 
 BINARY_SIZE_UNIT = 1024
 
-@custom_cache(max_size = 512)
+@xav_cache(max_size = 512)
 def get_proportional_listing(path):
     print(f"Proportional listing {path} ...")
     total = 0
@@ -119,7 +119,12 @@ class DUHttpHandle(BaseHTTPRequestHandler):
             with open('du.html', 'rb') as f:
                 self.send_response(200)
                 self.end_headers()
-                shutil.copyfileobj(f, self.wfile)
+                self.wfile.write(
+                    f.read().replace(
+                        b"__FS_ROOT__",
+                        os.path.abspath(os.sep).replace("\\", "\\\\").encode('utf-8')
+                    )
+                )
         elif len(splitted) == 2 and splitted[0] == "/query":
             listing = get_proportional_listing(splitted[1])
             self.send_response(200)
@@ -150,7 +155,7 @@ class DUHttpHandle(BaseHTTPRequestHandler):
 
 """
 
-@custom_cache(max_size = 16)
+@xav_cache(max_size = 16)
 def test(x):
     result = x * 2 + 1
     print(f"test({x}) = {result}")

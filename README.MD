@@ -8,7 +8,7 @@ _Please note that this tool can't account for folders/files which it can't acces
 
 ## Using it
 
- 1. Ensure you have Python 3.7. If you don't use Micro$oft Window$, read the section below.
+ 1. Ensure you have Python 3.7.
 
  2. Run du.py
 
@@ -28,13 +28,7 @@ _Please note that this tool can't account for folders/files which it can't acces
 
  10. Click on a folder to the left of the currently opened folder to close it
 
- 11. Alt+Click on any entry to reveal it in explorer (Windows only)
-
-## Non-windows
-
-To use on a *NIX system, you'll need to change a few things:
-
- 1. Change the line in `du.html` from `make_listing("C:\\", document.body, 0, 0);` to `make_listing("/", document.body, 0, 0);`
+ 11. Alt+Click on any entry to reveal it in explorer (Window$ only)
 
 ## Testimonials
 

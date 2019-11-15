@@ -113,7 +113,12 @@
                     alert("Error report to Xavier " + e)
                 });
             }
-            make_listing("C:\\", document.body, 0, 0);
+            let FS_ROOT = "__FS_ROOT__"; // replaced by python script
+            if(FS_ROOT == "__FS" + "_ROOT__") {
+                alert("Error code 7998");
+            } else {
+                make_listing(FS_ROOT, document.body, 0, 0);
+            }
         </script>
     </body>
 </html>
