@@ -8,6 +8,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler, ThreadingHTTPServer
 import urllib.parse
 import functools
 import subprocess
+import webbrowser
 
 def custom_cache(max_size = 16384, initial_minimum = float('-inf')):
     if not isinstance(max_size, int):
@@ -108,6 +109,7 @@ def get_proportional_listing(path):
             size_summary = str(round(size_summary_value, 3)) + " " + size_summary_suffix + "B"
             
             children.append((entry_size, os.path.split(entry.path)[1], entry.path, is_folder, size_summary))
+    print(f"Done proportional listing of {path}, size is {total}")
     return list(map(lambda child: (child[0] / total, *child[1:]), children))
 
 class DUHttpHandle(BaseHTTPRequestHandler):
@@ -198,6 +200,7 @@ if __name__ == '__main__':
         serve_message = "Serving HTTP on {host} port {port} (http://{host}:{port}/) ..."
         print(serve_message.format(host=sa[0], port=sa[1]))
         try:
+            webbrowser.open_new_tab(f"http://{host}:{port}")
             httpd.serve_forever()
         except KeyboardInterrupt:
             print("\nKeyboard interrupt received, exiting.")
