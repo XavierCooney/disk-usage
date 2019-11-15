@@ -32,6 +32,9 @@
     <body>
         <script type="text/javascript">
             'use strict';
+            if(window.location.href.includes("du.html")) {
+                alert("Please run the python script and open the appropriate location, not just open the HTML...");
+            }
             let API_URL = window.location.origin;
             let BOX_WIDTH = 300;
             function make_listing(path, dom_node, x_offset, generation) {
