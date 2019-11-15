@@ -1,8 +1,8 @@
 # Xavier's Tiny Disk Usage Explorer
 
-It does what it says: explore disk usage. The backend is written in Python ( > 3.6), and the frontend is written in HTML5.
+It does what it says: explore disk usage. The backend is written in Python (3.7 or higher), and the frontend is written in HTML5.
 
-Please note: this is not intended to have good UI or UX, but rather to server my very specific needs. It deliberately does things in ways which could be improved to save time.
+Please note: this is not intended to have good UI or UX, but rather to server my very specific needs. It deliberately does things in ways which could be improved to save development time.
 
 _Please note that this tool can't account for folders/files which it can't access, so the numbers may be actually larger_
 
