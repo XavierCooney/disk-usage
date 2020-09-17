@@ -5,6 +5,7 @@
         <style>
             * {
                 font-family:'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+                box-sizing: border-box;
             }
             .loading {
                 cursor: progress !important;
@@ -33,50 +34,75 @@
             #loading-msg {
                 display: flex;
                 align-items: center;
-                align-items: center;
                 justify-content: center;
-                height: 300px;
                 width: 100%;
                 height: 100%;
-                /* text-align: center; */
+                flex-direction: column;
+            }
+            #top-bar {
+                background-color: #0F0;
+                height: 30px;
+                padding: 3px;
+                overflow: hidden;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                vertical-align: middle;
+                display: table-cell;
+                line-height: 30px;
             }
         </style>
     </head>
     <body>
-        <div id="loading-msg">
-            Scanning<span id="loading-dots"></span>
+        <div id="top-bar">
+            Scanning file system, please stand by...
         </div>
-        <script type="text/javascript">
-            {
-                let num_dots = 0;
-                setInterval(() => {
-                    num_dots += 1;
-                    num_dots %= 4;
-                    document.getElementById('loading-dots').innerText = '.'.repeat(num_dots);
-                }, 500);
-            }
-        </script>
-
+        <div id="loading-msg">
+            <div>
+                Scanning<span id="loading-dots"></span>
+            </div>
+            <div>
+                <span id="loading-status"></span>
+            </div>
+        </div>
         <script type="text/javascript">
             'use strict';
             if(window.location.href.includes("du.html")) {
                 alert("Please run the python script and open the appropriate location, not just open the HTML...");
             }
             let API_URL = window.location.origin;
-            let BOX_WIDTH = 300;
+            const BOX_WIDTH = 300;
+            const TOP_BAR_HEIGHT = 30;
+
+            let num_loading_dots = 0;
+            setInterval(() => {
+                num_loading_dots += 1;
+                num_loading_dots %= 4;
+                document.getElementById('loading-dots').innerText = '.'.repeat(num_loading_dots);
+            }, 500);
+
+            let main_scan_done = false;
+            function fetch_new_loading_status() {
+                fetch(API_URL + "/main_scan_status", {
+                    method: 'POST'
+                }).then(
+                    response => response.text()
+                ).then(function(text_response) {
+                    document.getElementById('loading-status').innerText = text_response;
+                    if(!main_scan_done) {
+                        setTimeout(fetch_new_loading_status, 1500);
+                    }
+                }).catch(e => {
+                    document.getElementById('loading-status').innerText = "Error loading status: " + e;
+                    console.log(e);
+                });
+            }
+            fetch_new_loading_status();
 
             function format_big_number(n) {
                 // 1234567 --> 1,234,567
-                if(n <= 0 || n % 1 != 0) return n.toString();
-                let reversed_digits = n.toString().split('').reverse();
-                let reversed_with_commas = [];
-                for(let i = 0; i < reversed_digits.length; ++i) {
-                    if(i % 3 == 0 && i != 0) {
-                        reversed_with_commas.push(',');
-                    }
-                    reversed_with_commas.push(reversed_digits[i]);
-                }
-                return reversed_with_commas.reverse().join('');
+                return n.toLocaleString();
             }
             function make_listing(path, dom_node, x_offset, generation) {
                 document.body.classList.add("loading");
@@ -85,25 +111,26 @@
                 ).then(function(json_response) {
                     document.body.classList.remove("loading");
                     document.getElementById('loading-msg').style.visibility = 'hidden';
+                    main_scan_done = true;
                     let other_columns = document.getElementsByClassName("columns");
                     for (let i = other_columns.length - 1; i >= 0; --i) {
                         // faffing around to allow for removal of elements from list during iteration
                         let element = other_columns[i];
-                        console.log(parseInt(element.dataset.generation));
                         if(parseInt(element.dataset.generation) >= generation) {
                             element.parentNode.removeChild(element);
                         }
                     }
                     console.log(json_response);
+                    document.getElementById("top-bar").innerText = json_response.header;
                     let colour_light = false;
-                    let y_offset = 0;
+                    let y_offset = TOP_BAR_HEIGHT;
                     let column_node = document.createElement("div");
                     column_node.classList.add("columns");
                     column_node.style.zIndex = generation;
                     column_node.dataset.generation = generation;
                     column_node.style.display = "position";
                     let box_nodes = [];
-                    for(let child of json_response) {
+                    for(let child of json_response.entries) {
                         let percentage = child[0];
                         let filename = child[1];
                         let box_node = document.createElement("div");
@@ -115,7 +142,7 @@
                         box_node.style.width = BOX_WIDTH;
                         box_node.style.left = x_offset;
                         box_node.style.top = y_offset;
-                        let box_height = percentage * (document.documentElement.clientHeight - 2);
+                        let box_height = percentage * (document.documentElement.clientHeight - 2 - TOP_BAR_HEIGHT);
                         y_offset += box_height;
                         box_node.style.height = box_height;
                         box_node.style.backgroundColor = colour_light ?

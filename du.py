@@ -1,21 +1,29 @@
+#!/usr/bin/env python
+__author__ = "Xavier Cooney"
+
+import sys
+if sys.version_info < (3, 7):
+    print("Need at least Python 3.7!")
+    input("Press enter to exit... ")
+    sys.exit(1)
+
 import functools
 import heapq
 import json
 import os
 import shutil
 import subprocess
-import sys
 import threading
 import time
 import urllib.parse
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
 
+# relatively simplistic exclusion list (must be full path, case insensitive)
+EXCLUDE_PATHS = ['/mnt/c', '/proc', '/dev']
 
 def xav_cache(max_size=16384, initial_minimum=float('-inf')):
-    if not isinstance(max_size, int):
-        raise TypeError('Expected max_size to be an integer')
-
+    """ A tiny priority cache function, pretty nifty """
     def decorating_function(user_function):
         not_found_sentinel = object()
         arg_to_val_cache = {}
@@ -50,14 +58,23 @@ def xav_cache(max_size=16384, initial_minimum=float('-inf')):
         return wrapped_function
     return decorating_function
 
+
 last_report_unix_time = 0
+main_scan_num_files = 0
+main_scan_num_bytes = 0
+main_scan_time = None
 
 @xav_cache(max_size=(4096 * 8))
 def find_folder_size(path):
-    global last_report_unix_time
+    global last_report_unix_time, main_scan_num_files, main_scan_num_bytes
     if time.time() > last_report_unix_time + 1:
         print(f'Examining {path}...')
         last_report_unix_time = time.time()
+
+    for exclusion in EXCLUDE_PATHS:
+        if path.lower().startswith(exclusion.lower()):
+            print(f"Skipping '{path}' because of exclusion")
+            return 0, 0
 
     total = 0
     num_files = 0
@@ -71,7 +88,11 @@ def find_folder_size(path):
                         total += sizes[1]
                     elif entry.is_file(follow_symlinks=False):
                         num_files += 1
+                        entry_num_bytes = entry.stat().st_size
                         total += entry.stat().st_size
+                        if is_first_scan:
+                            main_scan_num_files += 1
+                            main_scan_num_bytes += entry_num_bytes
                     else:
                         print(f"Hmmm symlink: {entry.path}")
                 except:
@@ -81,10 +102,53 @@ def find_folder_size(path):
     return num_files, total
 
 BINARY_SIZE_UNIT = 1024
+
+def nice_format_byte_amount(byte_amount):
+    size_summary_suffix = ""
+    size_summary_value = byte_amount
+
+    if size_summary_value >= BINARY_SIZE_UNIT:
+        size_summary_value /= BINARY_SIZE_UNIT
+        size_summary_suffix = "K"
+    if size_summary_value >= BINARY_SIZE_UNIT:
+        size_summary_value /= BINARY_SIZE_UNIT
+        size_summary_suffix = "M"
+    if size_summary_value >= BINARY_SIZE_UNIT:
+        size_summary_value /= BINARY_SIZE_UNIT
+        size_summary_suffix = "G"
+    if size_summary_value >= BINARY_SIZE_UNIT:
+        size_summary_value /= BINARY_SIZE_UNIT
+        size_summary_suffix = "T" # hmmm terabyte
+    if size_summary_value >= BINARY_SIZE_UNIT:
+        size_summary_value /= BINARY_SIZE_UNIT
+        size_summary_suffix = "P" # hmmm petabyte
+    if size_summary_value >= BINARY_SIZE_UNIT:
+        size_summary_value /= BINARY_SIZE_UNIT
+        size_summary_suffix = "E" # hmmm exabyte
+
+    return str(round(size_summary_value, 2)) + " " + size_summary_suffix + "B"
+
+def get_formatted_total_files_discovered():
+    global main_scan_num_files
+    if main_scan_num_files <= 0 or main_scan_num_files % 1 != 0:
+        return str(main_scan_num_files)
+    file_amt_reversed = []
+    num_files_temp = main_scan_num_files
+    while num_files_temp != 0:
+        this_group = num_files_temp % 1000
+        num_files_temp = num_files_temp // 1000
+        if num_files_temp == 0:
+            file_amt_reversed.append(str(f'{this_group % 1000}'))
+        else:
+            file_amt_reversed.append(str(f'{this_group % 1000:03}'))
+    return ','.join(reversed(file_amt_reversed))
+
 listing_lock = threading.Lock()
+is_first_scan = True
 
 @xav_cache(max_size=512)
 def get_proportional_listing(path):
+    global is_first_scan, main_scan_time
     began_listing = time.time()
     if not listing_lock.acquire(blocking=True, timeout=10):
         raise Exception(
@@ -111,34 +175,15 @@ def get_proportional_listing(path):
                         is_folder = False
                         num_files = 1
                     total += entry_size
-                    size_summary_suffix = ""
-                    size_summary_value = entry_size
-
-                    if size_summary_value >= BINARY_SIZE_UNIT:
-                        size_summary_value /= BINARY_SIZE_UNIT
-                        size_summary_suffix = "K"
-                    if size_summary_value >= BINARY_SIZE_UNIT:
-                        size_summary_value /= BINARY_SIZE_UNIT
-                        size_summary_suffix = "M"
-                    if size_summary_value >= BINARY_SIZE_UNIT:
-                        size_summary_value /= BINARY_SIZE_UNIT
-                        size_summary_suffix = "G"
-                    if size_summary_value >= BINARY_SIZE_UNIT:
-                        size_summary_value /= BINARY_SIZE_UNIT
-                        size_summary_suffix = "T" # hmmm terabyte
-                    if size_summary_value >= BINARY_SIZE_UNIT:
-                        size_summary_value /= BINARY_SIZE_UNIT
-                        size_summary_suffix = "P" # hmmm petabyte
-                    if size_summary_value >= BINARY_SIZE_UNIT:
-                        size_summary_value /= BINARY_SIZE_UNIT
-                        size_summary_suffix = "E" # hmmm exabyte
-
-                    size_summary = str(round(size_summary_value, 3)) + " " + size_summary_suffix + "B"
+                    size_summary = nice_format_byte_amount(entry_size)
 
                     children.append((entry_size, os.path.split(entry.path)[1], entry.path, is_folder, size_summary, num_files))
             time_took = str(round(time.time() - began_listing, 3))
             print(f"Done proportional listing of {path}, size is {total}, took {time_took} seconds")
             # print(f"(current lowest in cache: {find_folder_size.lowest_cached_val()})")
+            if is_first_scan:
+                main_scan_time = time_took
+            is_first_scan = False
             return list(map(lambda child: (child[0] / total, *child[1:]), children))
         finally:
             # can't easily use context manager with timeout for locking :(
@@ -161,7 +206,12 @@ class DUHttpHandle(BaseHTTPRequestHandler):
             listing = get_proportional_listing(splitted[1])
             self.send_response(200)
             self.end_headers()
-            self.wfile.write(json.dumps(listing).encode('utf-8'))
+
+            self.wfile.write(json.dumps({
+                'entries': listing,
+                'header': f"Primary scan took {main_scan_time} seconds and found "
+                          f"{nice_format_byte_amount(main_scan_num_bytes)} across {get_formatted_total_files_discovered()} files. © 2019-2020 Xavier Cooney"
+            }).encode('utf-8'))
         else:
             self.send_response(404)
             self.end_headers()
@@ -180,6 +230,12 @@ class DUHttpHandle(BaseHTTPRequestHandler):
                 self.send_response(501) # 501: Not Implemented
                 self.end_headers()
                 self.wfile.write(b"OK")
+        elif len(splitted) == 1 and splitted[0] == "/main_scan_status":
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(
+                f'{nice_format_byte_amount(main_scan_num_bytes)} discovered across {get_formatted_total_files_discovered()} files'.encode('utf-8')
+            )
         else:
             self.send_response(404)
             self.end_headers()
@@ -190,8 +246,7 @@ if __name__ == '__main__':
     port = 8080
     with ThreadingHTTPServer((host, port), DUHttpHandle) as httpd:
         sa = httpd.socket.getsockname()
-        serve_message = "Serving HTTP on {host} port {port} (http://{host}:{port}/) ..."
-        print(serve_message.format(host=sa[0], port=sa[1]))
+        print(f"Waiting on {sa[0]} port {sa[1]} (http://{sa[0]}:{sa[1]}/) ...")
         try:
             webbrowser.open_new_tab(f"http://{host}:{port}")
             httpd.serve_forever()
