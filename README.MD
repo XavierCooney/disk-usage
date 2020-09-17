@@ -8,7 +8,7 @@ _Please note that this tool can't account for folders/files which it can't acces
 
 ## Using it
 
- 1. Ensure you have Python 3.7.
+ 1. Ensure you have Python 3.7
 
  2. Run du.py
 
@@ -16,19 +16,19 @@ _Please note that this tool can't account for folders/files which it can't acces
 
  4. Wait a while. You can open up the console in Python to see as it looks through your filesystem and adds things up
 
- 5. After it loads, you should see the files in your root C: drive.
+ 5. After it loads, you should see the files in your root C: drive (or / for *nix).
 
- 6. The entry's heights are proportional to their size relative to the sizes of the folder/s they contain
+ 6. The entry's heights are proportional to their size relative to the sizes of the folder(s) they contain
 
  7. You can hover your mouse over entries to view further info
 
- 8. Folders are marked with a blue right edge.
+ 8. Folders are marked with a blue right edge
 
- 9. You can click on folders to view their contents. Note that on occasion the backend may need to look through your filesystem (if it decides it wants to forget it)
+ 9. You can click on folders to view their contents. Note that on occasion the backend may need to look through your filesystem again (if it decided it wanted to forget it previously)
 
  10. Click on a folder to the left of the currently opened folder to close it
 
- 11. Alt+Click on any entry to reveal it in explorer (Window$ only)
+ 11. Alt+Click on any entry to reveal it in explorer (Windows only)
 
 ## Testimonials
 

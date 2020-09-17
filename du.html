@@ -7,7 +7,7 @@
                 font-family:'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
             }
             .loading {
-                cursor: progress !important;                
+                cursor: progress !important;
             }
             .loading * {
                 cursor: progress !important;
@@ -27,9 +27,36 @@
             .entry.folder.selected {
                 border-right: 3px #0F0 solid;
             }
+            body {
+                overflow-x: scroll;
+            }
+            #loading-msg {
+                display: flex;
+                align-items: center;
+                align-items: center;
+                justify-content: center;
+                height: 300px;
+                width: 100%;
+                height: 100%;
+                /* text-align: center; */
+            }
         </style>
     </head>
     <body>
+        <div id="loading-msg">
+            Scanning<span id="loading-dots"></span>
+        </div>
+        <script type="text/javascript">
+            {
+                let num_dots = 0;
+                setInterval(() => {
+                    num_dots += 1;
+                    num_dots %= 4;
+                    document.getElementById('loading-dots').innerText = '.'.repeat(num_dots);
+                }, 500);
+            }
+        </script>
+
         <script type="text/javascript">
             'use strict';
             if(window.location.href.includes("du.html")) {
@@ -37,12 +64,27 @@
             }
             let API_URL = window.location.origin;
             let BOX_WIDTH = 300;
+
+            function format_big_number(n) {
+                // 1234567 --> 1,234,567
+                if(n <= 0 || n % 1 != 0) return n.toString();
+                let reversed_digits = n.toString().split('').reverse();
+                let reversed_with_commas = [];
+                for(let i = 0; i < reversed_digits.length; ++i) {
+                    if(i % 3 == 0 && i != 0) {
+                        reversed_with_commas.push(',');
+                    }
+                    reversed_with_commas.push(reversed_digits[i]);
+                }
+                return reversed_with_commas.reverse().join('');
+            }
             function make_listing(path, dom_node, x_offset, generation) {
                 document.body.classList.add("loading");
                 fetch(API_URL + "/query|" + encodeURI(path)).then(
                     response => response.json()
                 ).then(function(json_response) {
                     document.body.classList.remove("loading");
+                    document.getElementById('loading-msg').style.visibility = 'hidden';
                     let other_columns = document.getElementsByClassName("columns");
                     for (let i = other_columns.length - 1; i >= 0; --i) {
                         // faffing around to allow for removal of elements from list during iteration
@@ -68,18 +110,22 @@
                         let full_path = child[2];
                         let foldable = child[3];
                         let size_summary = child[4];
+                        let num_files = child[5];
                         box_node.style.position = "absolute";
                         box_node.style.width = BOX_WIDTH;
                         box_node.style.left = x_offset;
                         box_node.style.top = y_offset;
-                        let box_height = percentage * document.documentElement.clientHeight;
+                        let box_height = percentage * (document.documentElement.clientHeight - 2);
                         y_offset += box_height;
                         box_node.style.height = box_height;
-                        box_node.style.backgroundColor = colour_light ? 
+                        box_node.style.backgroundColor = colour_light ?
                             (foldable ? "#CCF" : "#EEE") : (foldable ? "#AAE" : "#AAA");
                         colour_light = !colour_light;
                         box_node.innerText = filename;
-                        box_node.innerHTML += "<br /> " + /*Math.round(percentage * 100, 2) + "<br />" + */ size_summary;
+                        box_node.innerHTML += "<br /> " + size_summary;
+                        if(num_files != 1) {
+                            box_node.innerHTML += "<br /> " + format_big_number(num_files) + " files";
+                        }
                         box_node.title = box_node.innerText + " (" + Math.round(percentage * 100, 2) + "% of folder)";
                         box_node.classList.add("entry");
                         box_node.style.zIndex = 9999 - generation;
@@ -110,7 +156,7 @@
                 }).catch(function(e) {
                     console.error(e);
                     document.body.classList.remove("loading");
-                    alert("Error report to Xavier " + e)
+                    alert("Error report to Xavier (also check console): " + e)
                 });
             }
             let FS_ROOT = "__FS_ROOT__"; // replaced by python script

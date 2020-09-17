@@ -1,16 +1,18 @@
-import sys
-import os
 import functools
-import shutil
 import heapq
 import json
-from http.server import HTTPServer, BaseHTTPRequestHandler, ThreadingHTTPServer
-import urllib.parse
-import functools
+import os
+import shutil
 import subprocess
+import sys
+import threading
+import time
+import urllib.parse
 import webbrowser
+from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
 
-def xav_cache(max_size = 16384, initial_minimum = float('-inf')):
+
+def xav_cache(max_size=16384, initial_minimum=float('-inf')):
     if not isinstance(max_size, int):
         raise TypeError('Expected max_size to be an integer')
 
@@ -28,9 +30,7 @@ def xav_cache(max_size = 16384, initial_minimum = float('-inf')):
             combined_args = (args,)
             cache_attempt = arg_to_val_cache.get(combined_args, not_found_sentinel)
             if cache_attempt is not not_found_sentinel:
-                print(f"HIT")
                 return cache_attempt
-            print(f"MISS")            
             value = user_function(*args, **kwargs)
             if current_cache_length < max_size:
                 # cache isn't full, just put it in regardless
@@ -46,71 +46,103 @@ def xav_cache(max_size = 16384, initial_minimum = float('-inf')):
                 arg_to_val_cache[combined_args] = value
                 current_min = values_remembered[0][0]
             return value
+        # wrapped_function.lowest_cached_val = lambda: (values_remembered[0], len(arg_to_val_cache))
         return wrapped_function
     return decorating_function
 
-@xav_cache(max_size = 2048 * 8)
+last_report_unix_time = 0
+
+@xav_cache(max_size=(4096 * 8))
 def find_folder_size(path):
-    print(f"Checking {path} ...")
+    global last_report_unix_time
+    if time.time() > last_report_unix_time + 1:
+        print(f'Examining {path}...')
+        last_report_unix_time = time.time()
+
     total = 0
+    num_files = 0
     try:
         with os.scandir(path) as entry_iterator:
             for entry in entry_iterator:
                 try:
-                    if entry.is_dir(follow_symlinks = False):
-                        total += find_folder_size(entry.path)
-                    elif entry.is_file(follow_symlinks = False):
+                    if entry.is_dir(follow_symlinks=False):
+                        sizes = find_folder_size(entry.path)
+                        num_files += sizes[0]
+                        total += sizes[1]
+                    elif entry.is_file(follow_symlinks=False):
+                        num_files += 1
                         total += entry.stat().st_size
+                    else:
+                        print(f"Hmmm symlink: {entry.path}")
                 except:
                     pass
     except:
         pass
-    print(f"{path} is size {total}")
-    return total
+    return num_files, total
 
 BINARY_SIZE_UNIT = 1024
+listing_lock = threading.Lock()
 
-@xav_cache(max_size = 512)
+@xav_cache(max_size=512)
 def get_proportional_listing(path):
-    print(f"Proportional listing {path} ...")
-    total = 0
-    children = []
-    with os.scandir(path) as entry_iterator:
-        for entry in entry_iterator:
-            if entry.is_dir(follow_symlinks = False):
-                entry_size = find_folder_size(entry.path)
-                is_folder = True
-            elif entry.is_file(follow_symlinks = False):
-                entry_size =  entry.stat().st_size
-                is_folder = False
-            total += entry_size
-            size_summary_suffix = ""
-            size_summary_value = entry_size
+    began_listing = time.time()
+    if not listing_lock.acquire(blocking=True, timeout=10):
+        raise Exception(
+            "Could not get lock after 10 seconds. "
+            "Have you got multiple tabs of this program open?"
+        )
+    else:
+        try:
+            print(f"Proportional listing {path} ...")
+            total = 0
+            children = []
+            with os.scandir(path) as entry_iterator:
+                for entry in entry_iterator:
+                    if entry.is_dir(follow_symlinks=False):
+                        num_files, entry_size = find_folder_size(entry.path)
+                        is_folder = True
+                    elif entry.is_file(follow_symlinks=False):
+                        entry_size = entry.stat().st_size
+                        is_folder = False
+                        num_files = 1
+                    else:
+                        print(f"Hmmm got a symlink here... {entry.name}")
+                        entry_size = 0 # don't follow, just assume it takes zero size...
+                        is_folder = False
+                        num_files = 1
+                    total += entry_size
+                    size_summary_suffix = ""
+                    size_summary_value = entry_size
 
-            if size_summary_value >= BINARY_SIZE_UNIT:
-                size_summary_value /= BINARY_SIZE_UNIT
-                size_summary_suffix = "K"
-            if size_summary_value >= BINARY_SIZE_UNIT:
-                size_summary_value /= BINARY_SIZE_UNIT
-                size_summary_suffix = "M"
-            if size_summary_value >= BINARY_SIZE_UNIT:
-                size_summary_value /= BINARY_SIZE_UNIT
-                size_summary_suffix = "G"
-            if size_summary_value >= BINARY_SIZE_UNIT:
-                size_summary_value /= BINARY_SIZE_UNIT
-                size_summary_suffix = "T" # hmmm terabyte
-            if size_summary_value >= BINARY_SIZE_UNIT:
-                size_summary_value /= BINARY_SIZE_UNIT
-                size_summary_suffix = "P" # hmmm petabyte
-            if size_summary_value >= BINARY_SIZE_UNIT:
-                size_summary_value /= BINARY_SIZE_UNIT
-                size_summary_suffix = "E" # hmmm exabyte
+                    if size_summary_value >= BINARY_SIZE_UNIT:
+                        size_summary_value /= BINARY_SIZE_UNIT
+                        size_summary_suffix = "K"
+                    if size_summary_value >= BINARY_SIZE_UNIT:
+                        size_summary_value /= BINARY_SIZE_UNIT
+                        size_summary_suffix = "M"
+                    if size_summary_value >= BINARY_SIZE_UNIT:
+                        size_summary_value /= BINARY_SIZE_UNIT
+                        size_summary_suffix = "G"
+                    if size_summary_value >= BINARY_SIZE_UNIT:
+                        size_summary_value /= BINARY_SIZE_UNIT
+                        size_summary_suffix = "T" # hmmm terabyte
+                    if size_summary_value >= BINARY_SIZE_UNIT:
+                        size_summary_value /= BINARY_SIZE_UNIT
+                        size_summary_suffix = "P" # hmmm petabyte
+                    if size_summary_value >= BINARY_SIZE_UNIT:
+                        size_summary_value /= BINARY_SIZE_UNIT
+                        size_summary_suffix = "E" # hmmm exabyte
 
-            size_summary = str(round(size_summary_value, 3)) + " " + size_summary_suffix + "B"
-            
-            children.append((entry_size, os.path.split(entry.path)[1], entry.path, is_folder, size_summary))
-    print(f"Done proportional listing of {path}, size is {total}")
-    return list(map(lambda child: (child[0] / total, *child[1:]), children))
+                    size_summary = str(round(size_summary_value, 3)) + " " + size_summary_suffix + "B"
+
+                    children.append((entry_size, os.path.split(entry.path)[1], entry.path, is_folder, size_summary, num_files))
+            time_took = str(round(time.time() - began_listing, 3))
+            print(f"Done proportional listing of {path}, size is {total}, took {time_took} seconds")
+            # print(f"(current lowest in cache: {find_folder_size.lowest_cached_val()})")
+            return list(map(lambda child: (child[0] / total, *child[1:]), children))
+        finally:
+            # can't easily use context manager with timeout for locking :(
+            listing_lock.release()
 
 class DUHttpHandle(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -140,7 +172,7 @@ class DUHttpHandle(BaseHTTPRequestHandler):
         if len(splitted) == 2 and splitted[0] == "/reveal":
             if os.name == 'nt':
                 # note: may return non-zero exit status, because Windows :(
-                subprocess.run(['explorer', '/select,' + splitted[1]])
+                subprocess.run('explorer /select,"' + splitted[1].replace('"', '') + '"')
                 self.send_response(200)
                 self.end_headers()
                 self.wfile.write(b"OK")
@@ -152,50 +184,6 @@ class DUHttpHandle(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
             self.wfile.write(b"404 NOT FOUND")
-
-"""
-
-@xav_cache(max_size = 16)
-def test(x):
-    result = x * 2 + 1
-    print(f"test({x}) = {result}")
-    return result
-
-assert test(0) == 1
-assert test(0) == 1
-assert test(1) == 3
-assert test(1) == 3
-assert test(2) == 5
-assert test(2) == 5
-assert test(3) == 7
-assert test(3) == 7
-assert test(4) == 9
-assert test(4) == 9
-assert test(5) == 11
-assert test(5) == 11
-assert test(6) == 13
-assert test(6) == 13
-assert test(7) == 15
-assert test(7) == 15
-
-assert test(0) == 1
-assert test(0) == 1
-assert test(1) == 3
-assert test(1) == 3
-assert test(2) == 5
-assert test(2) == 5
-assert test(3) == 7
-assert test(3) == 7
-assert test(4) == 9
-assert test(4) == 9
-assert test(5) == 11
-assert test(5) == 11
-assert test(6) == 13
-assert test(6) == 13
-assert test(7) == 15
-assert test(7) == 15
-"""
-
 
 if __name__ == '__main__':
     host = "localhost"
