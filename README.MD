@@ -2,7 +2,7 @@
 
 It does what it says: explore disk usage. The backend is written in Python (3.7 or higher), and the frontend is written in HTML5.
 
-_Please note that this tool can't account for folders/files which it can't access, so the numbers may be actually larger. Furthermore, it only counts the size of the files themselves, and not filesystem metadata_
+_Please note that this tool can't account for folders/files which it can't access, so the numbers may be actually larger. Furthermore, it only counts the size of the files themselves, not any filesystem metadata. With default settings, it will also only report the size of the file, not the space that the file consumes on disk._
 
 ## Using it
 
@@ -30,6 +30,8 @@ _Please note that this tool can't account for folders/files which it can't acces
 
  12. Alter the `EXCLUDE_PATHS` list in `du.py` to exclude folders as wanted
 
+ 13. Set `ACTUAL_SIZE_ON_DISK` to `True` in `du.py` to enable an experimental feature which attempts to report the actual space on disk, rather than the size of the file
+
 ## Testimonials
 
 > "This software immediately helped me identify a plethora of useless and unwanted software/files on my computer, and has helped me free up 10% of my storage (more than 12gb). Highly recommended!"
@@ -38,4 +40,4 @@ _[GitHubMadHatter](https://github.com/GitHubMadHatter) - Yash Agarwal_
 
 ## Screenshot
 
-![A screenshot of the software](screenshot.png?raw=true "Optional Title")
+![A screenshot of the software](screenshot.png?raw=true "A sample usage of du.py")

@@ -19,8 +19,11 @@ import urllib.parse
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
 
+
 # relatively simplistic exclusion list (must be full path, case insensitive)
 EXCLUDE_PATHS = ['/mnt/c', '/proc', '/dev']
+ACTUAL_SIZE_ON_DISK = False
+
 
 def xav_cache(max_size=16384, initial_minimum=float('-inf')):
     """ A tiny priority cache function, pretty nifty """
@@ -59,6 +62,57 @@ def xav_cache(max_size=16384, initial_minimum=float('-inf')):
     return decorating_function
 
 
+if ACTUAL_SIZE_ON_DISK:
+    if sys.platform == 'win32':
+        import ctypes
+        import ctypes.wintypes
+        import msvcrt
+
+        kernel32 = ctypes.windll.kernel32
+        GetFileInformationByHandleEx = kernel32.GetFileInformationByHandleEx
+        CreateFileW = kernel32.CreateFileW
+        GetLastError = kernel32.GetLastError
+        CloseHandle = kernel32.CloseHandle
+        LARGE_INTEGER = ctypes.wintypes.LARGE_INTEGER
+        DWORD = ctypes.wintypes.DWORD
+        BOOLEAN = ctypes.wintypes.BOOLEAN
+        class FILE_STANDARD_INFO(ctypes.Structure):
+            _fields_ = [("AllocationSize", LARGE_INTEGER),
+                        ("EndOfFile", LARGE_INTEGER),
+                        ("NumberOfLinks", DWORD),
+                        ("DeletePending", BOOLEAN),
+                        ("Directory", BOOLEAN)]
+        FileStandardInfo = 1 # hardcoded from enum
+
+        def get_entry_size(ent):
+            file_handle = CreateFileW(ent.path, 0, 0, 0, 3, 0, 0) # open without GENERIC_READ or GENERIC_WRITE
+            if file_handle != -1:
+                file_info = FILE_STANDARD_INFO()
+                get_info_res = GetFileInformationByHandleEx(
+                    file_handle, FileStandardInfo, ctypes.pointer(file_info),
+                    ctypes.sizeof(FILE_STANDARD_INFO)
+                )
+                if get_info_res:
+                    return file_info.AllocationSize
+                else:
+                    print(f"Error executing GetFileInformationByHandleEx() {GetLastError()} on path {ent.path}")
+                if not CloseHandle(file_handle):
+                    print(f"Error executing CloseHandle() {GetLastError()} on path {ent.path}")
+            else:
+                print(f"Error opening file with CreateFileW(): {GetLastError()} on path {ent.path}")
+            return 0 # Windows Explorer says 0 on these difficult files, so we may as well do the same
+
+    elif sys.platform.startswith('linux'):
+        def get_entry_size(ent):
+            # st_blocks guarenteed to be in blocks of 512 on Linux, but not necessarily other *nix
+            return ent.stat().st_blocks * 512
+    else:
+        assert False, "Actual size on disk not supported for this OS"
+else:
+    def get_entry_size(ent):
+        return ent.stat().st_size
+
+
 last_report_unix_time = 0
 main_scan_num_files = 0
 main_scan_num_bytes = 0
@@ -88,8 +142,8 @@ def find_folder_size(path):
                         total += sizes[1]
                     elif entry.is_file(follow_symlinks=False):
                         num_files += 1
-                        entry_num_bytes = entry.stat().st_size
-                        total += entry.stat().st_size
+                        entry_num_bytes = get_entry_size(entry)
+                        total += entry_num_bytes
                         if is_first_scan:
                             main_scan_num_files += 1
                             main_scan_num_bytes += entry_num_bytes
